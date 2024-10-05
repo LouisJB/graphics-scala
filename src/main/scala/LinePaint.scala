@@ -5,6 +5,9 @@ import scala.swing.event._
 import scala.swing.{Frame, MainFrame, Panel, SimpleSwingApplication}
 
 object LinePainting extends SimpleSwingApplication {
+  import GraphicUtils._
+  private var randomColor = false
+
   lazy val ui: Panel = new Panel with SettableFgColor {
     background = Color.black
     preferredSize = (800, 800)
@@ -18,8 +21,7 @@ object LinePainting extends SimpleSwingApplication {
 
     listenTo(keys)
     reactions += {
-      case KeyPressed(_, Key.A, _, _) =>
-        new ColorChooserFrame(this)
+      
       case KeyReleased(_, Key.Space, _, _) =>
     }
 
@@ -27,6 +29,9 @@ object LinePainting extends SimpleSwingApplication {
 
     reactions += {
       case e: MousePressed =>
+        if (randomColor) {
+          setFgColor(rndColor())
+        }
         moveTo(e.point)
         requestFocusInWindow()
       case e: MouseDragged => lineTo(e.point)
@@ -34,6 +39,10 @@ object LinePainting extends SimpleSwingApplication {
       case KeyTyped(_, 'c', _, _) =>
         path = new geom.GeneralPath
         repaint()
+      case KeyPressed(_, Key.A, _, _) =>
+        new ColorChooserFrame(this)
+      case KeyPressed(_, Key.R, _, _) =>
+        randomColor = !randomColor
       case _: FocusLost => repaint()
     }
 

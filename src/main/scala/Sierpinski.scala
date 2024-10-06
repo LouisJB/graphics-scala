@@ -14,13 +14,14 @@ import scala.util.Random
 object Sierpinski extends SimpleSwingApplication {
   import GraphicUtils._
   private val defaultSize = 800
-  private val maxDepth = 7
+  private val maxDepth = 7 // how many levels to go down, given you cannot see sub-pixel going too far in is not useful
   private val borderSize = 5
-  private val delayMs = 500
-  private var randomColor = false
-  private val startTime = System.currentTimeMillis() // just so it starts nicely at 0
+  private val delayMs = 1000 // refresh timer period
+  private val colorChangePerDepth = 1 // how may recolorings to do per refresh cycle (in 'r' random colour mode)
+  private var randomColor = false // default random colour mode 'r' is disabled
+  private val startTime = System.currentTimeMillis() // just so it starts nicely at 0 depth
   private def currMaxDepth = {
-    val x = (System.currentTimeMillis() - startTime) / 1000 % (maxDepth * 2)
+    val x = (System.currentTimeMillis() - startTime) / (delayMs * colorChangePerDepth) % (maxDepth * 2)
     min(x , 2 * maxDepth - x)
   }
 
@@ -47,15 +48,15 @@ object Sierpinski extends SimpleSwingApplication {
       case KeyReleased(_, Key.Space, _, _) =>
     }
     
-    val timer = new Timer(delayMs, new jae.ActionListener() {
+    val timer = new Timer(delayMs / colorChangePerDepth, new jae.ActionListener() {
       def actionPerformed(e: jae.ActionEvent): Unit = {
         repaint()
       }
-    })
-    timer.start()
+    }).start()
 
     override def paintComponent(g: Graphics2D): Unit = {
       super.paintComponent(g)
+      // set up an offscreen screen buffer to render of
       val buffImg = new BufferedImage(size.width, size.height, BufferedImage.TYPE_INT_RGB)
       val g2d = buffImg.createGraphics()
       g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
@@ -68,7 +69,7 @@ object Sierpinski extends SimpleSwingApplication {
         if (depth == 0) {
           g2d.setColor(fgColor)
           g2d.fillPolygon(
-            mkPoly(List(
+            mkPolygon(List(
               (midX, y),
               (x, y+s),
               (x+s, y+s)
@@ -80,7 +81,7 @@ object Sierpinski extends SimpleSwingApplication {
         else
           g2d.setColor(Color.WHITE)
         g2d.fillPolygon(
-          mkPoly(List(
+          mkPolygon(List(
             (x+s/4, midY),
             (x + 3*s/4, midY),
             (midX, y+s)
@@ -96,6 +97,7 @@ object Sierpinski extends SimpleSwingApplication {
       val currentSize = Math.min(ui.size.width, ui.size.height)
       tri(borderSize, borderSize, currentSize - 2 * borderSize)
 
+      // draw out the offline screen buffer to the displayed graphics screen, to display it
       val g2dr = g.asInstanceOf[Graphics2D]
       g2dr.drawImage(buffImg, 0, 0, null)
       g2d.dispose()
@@ -109,7 +111,7 @@ object Sierpinski extends SimpleSwingApplication {
     open()
   }
 
-  def mkPoly(points : List[(Int, Int)]) =
+  def mkPolygon(points : List[(Int, Int)]) =
     points.foldRight(new Polygon())((p, pgn) => { pgn.addPoint.tupled(p); pgn })
 }
 

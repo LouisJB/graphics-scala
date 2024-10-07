@@ -9,6 +9,12 @@ import java.awt.Polygon
 import java.awt.RenderingHints
 import java.awt.image.BufferedImage
 import scala.util.Random
+import java.awt.Dimension
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+import java.awt.BasicStroke
+import scala.swing.Font
+import scala.swing.BorderPanel
 
 
 object Sierpinski extends SimpleSwingApplication {
@@ -16,9 +22,12 @@ object Sierpinski extends SimpleSwingApplication {
   private val defaultSize = 800
   private val maxDepth = 7 // how many levels to go down, given you cannot see sub-pixel going too far in is not useful
   private val borderSize = 5
-  private val delayMs = 1000 // refresh timer period
+  private val defaultDelayMs = 1000 // refresh timer period
   private val colorChangePerDepth = 1 // how may recolorings to do per refresh cycle (in 'r' random colour mode)
+  private val timeFont = new Font("Digital-7", Font.Plain.id, 48)
+  private var delayMs = defaultDelayMs
   private var randomColor = false // default random colour mode 'r' is disabled
+  private var showTime = false
   private val startTime = System.currentTimeMillis() // just so it starts nicely at 0 depth
   private def currMaxDepth = {
     val x = (System.currentTimeMillis() - startTime) / (delayMs * colorChangePerDepth) % (maxDepth * 2)
@@ -37,22 +46,41 @@ object Sierpinski extends SimpleSwingApplication {
       repaint()
     }
 
+    val timer = new Timer(delayMs / colorChangePerDepth, new jae.ActionListener() {
+      def actionPerformed(e: jae.ActionEvent): Unit = {
+        repaint()
+      }
+    })
+    timer.start()
+
     listenTo(keys)
     reactions += {
       case KeyPressed(_, key, _, _) => key match {
         case Key.C =>
           new ColorChooserFrame(this)
+        case Key.T =>
+          showTime = !showTime
         case Key.R =>
           randomColor = !randomColor
+        case Key.B =>
+          fgColor = Color.BLACK
+        case Key.G =>
+          fgColor = Color.GREEN
+        case Key.Up =>
+          delayMs = max(delayMs / 2, 10)
+          timer.setDelay(delayMs)
+          println(delayMs)
+        case Key.Down =>
+          delayMs = min(delayMs * 2, 10 * 1000)
+          timer.setDelay(delayMs)
+        case Key.P =>
+          if (timer.isRunning) timer.stop else timer.start
+        case Key.X | Key.Escape =>
+          System.exit(0)
+        case _ => 
       }
       case KeyReleased(_, Key.Space, _, _) =>
     }
-    
-    val timer = new Timer(delayMs / colorChangePerDepth, new jae.ActionListener() {
-      def actionPerformed(e: jae.ActionEvent): Unit = {
-        repaint()
-      }
-    }).start()
 
     override def paintComponent(g: Graphics2D): Unit = {
       super.paintComponent(g)
@@ -94,8 +122,12 @@ object Sierpinski extends SimpleSwingApplication {
           tri(midX, midY, s/2, depth + 1)
         }
       }
-      val currentSize = Math.min(ui.size.width, ui.size.height)
-      tri(borderSize, borderSize, currentSize - 2 * borderSize)
+      val currentSize = Math.min(ui.size.width, ui.size.height) - 2 * borderSize
+      tri((size.width - currentSize) / 2, (size.height - currentSize) / 2, currentSize)
+
+      if (showTime) {
+        renderTime(g2d, size)
+      }
 
       // draw out the offline screen buffer to the displayed graphics screen, to display it
       val g2dr = g.asInstanceOf[Graphics2D]
@@ -106,13 +138,26 @@ object Sierpinski extends SimpleSwingApplication {
 
   def top: Frame = new MainFrame {
     title = "Sierpinski's Triangle"
-    contents = ui
+    contents = new BorderPanel { add(ui, BorderPanel.Position.Center) }
     pack().centerOnScreen()
     open()
   }
 
-  def mkPolygon(points : List[(Int, Int)]) =
+  def renderTime(g2d: Graphics2D, size: Dimension) = {
+    g2d.setColor(Color.BLACK)
+    g2d.setFont(timeFont)
+    val timeStr = currentTimeStr
+    val metrics = g2d.getFontMetrics(timeFont)
+    val rect = metrics.getStringBounds(timeStr, g2d)
+    val tx = (size.width - rect.getWidth.toInt) / 2
+    g2d.drawString(timeStr, tx , size.height / 2 + rect.getHeight.toInt + metrics.getAscent)
+  }
+
+  private def mkPolygon(points : List[(Int, Int)]) =
     points.foldRight(new Polygon())((p, pgn) => { pgn.addPoint.tupled(p); pgn })
+  
+  private def currentTimeStr =
+    LocalTime.now().format(DateTimeFormatter.ofPattern("hh:mm:ss"))
 }
 
 trait SettableFgColor {

@@ -15,9 +15,16 @@ import java.time.format.DateTimeFormatter
 import java.awt.BasicStroke
 import scala.swing.Font
 import scala.swing.BorderPanel
+import javax.swing.JFrame
+import scala.runtime.stdLibPatches.language.experimental.modularity
+import java.awt.Rectangle
+import javax.swing.SwingUtilities
+import scala.swing.Dialog
+import java.awt.Toolkit
+import scala.swing.Swing
 
 
-object Sierpinski extends SimpleSwingApplication {
+object Sierpinski { //extends SimpleSwingApplication {
   import GraphicUtils._
   private val defaultSize = 800
   private val maxDepth = 7 // how many levels to go down, given you cannot see sub-pixel going too far in is not useful
@@ -34,7 +41,8 @@ object Sierpinski extends SimpleSwingApplication {
     min(x , 2 * maxDepth - x)
   }
 
-  lazy val ui: Panel = new Panel with SettableFgColor {
+  lazy val ui = mkUi()
+  def mkUi(): Panel = new Panel with SettableFgColor {
     background = Color.yellow
     val panelSize = defaultSize + 2 * borderSize
     preferredSize = (panelSize, panelSize)
@@ -75,7 +83,7 @@ object Sierpinski extends SimpleSwingApplication {
           timer.setDelay(delayMs)
         case Key.P =>
           if (timer.isRunning) timer.stop else timer.start
-        case Key.X | Key.Escape =>
+        case Key.X | Key.Q | Key.Escape =>
           System.exit(0)
         case _ => 
       }
@@ -141,6 +149,7 @@ object Sierpinski extends SimpleSwingApplication {
     contents = new BorderPanel { add(ui, BorderPanel.Position.Center) }
     pack().centerOnScreen()
     open()
+    println("Done in top")
   }
 
   def renderTime(g2d: Graphics2D, size: Dimension) = {
@@ -158,6 +167,42 @@ object Sierpinski extends SimpleSwingApplication {
   
   private def currentTimeStr =
     LocalTime.now().format(DateTimeFormatter.ofPattern("hh:mm:ss"))
+
+  /**
+    * explicit main to have more control than with SimpleSwingApplication and
+    *   ensure await for top window to end before ending process
+    */
+  def main(args: Array[String]): Unit = {
+    println("Sierpinski starting")
+    def createAndOpen(): Unit = {
+      println("Sierpinski creating")
+      val sizeDims = new java.awt.Dimension(800, 800)
+      val top = new Dialog()
+      top.peer.setUndecorated(false)
+      top.modal = true
+      top.peer.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE)
+      top.bounds = new Rectangle(0, 0, sizeDims.width, sizeDims.height)
+      top.title = "Sierpinski's Triangle"
+      top.contents = new BorderPanel { add(ui, BorderPanel.Position.Center) }
+      top.pack().centerOnScreen()
+      top.open() // modal will block
+/*
+      val parent = new Dialog()
+      parent.modal = true
+      val small = new Dimension(80, 80)
+      parent.minimumSize = small
+      parent.size = small
+      parent.maximumSize = small
+      parent.location = Point(0 - small.width * 2, 0 - small.height * 2)
+      parent.open() // modal will wait
+*/
+      println("Sierpinski open completed")
+    }
+    SwingUtilities.invokeAndWait { new Runnable {
+      override def run(): Unit = createAndOpen()
+    }}
+    println("Sierpinski ended")
+  }
 }
 
 trait SettableFgColor {

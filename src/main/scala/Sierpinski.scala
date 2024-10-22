@@ -18,18 +18,17 @@ import scala.swing.BorderPanel
 import javax.swing.JFrame
 import scala.runtime.stdLibPatches.language.experimental.modularity
 import java.awt.Rectangle
+import java.util.concurrent.atomic.AtomicBoolean
+import java.awt.event.WindowAdapter
 import javax.swing.SwingUtilities
-import scala.swing.Dialog
-import java.awt.Toolkit
-import scala.swing.Swing
 
 
-object Sierpinski { //extends SimpleSwingApplication {
+object Sierpinski {
   import GraphicUtils._
   private val defaultSize = 800
   private val maxDepth = 7 // how many levels to go down, given you cannot see sub-pixel going too far in is not useful
   private val borderSize = 5
-  private val defaultDelayMs = 1000 // refresh timer period
+  private val defaultDelayMs = 1000.0 // refresh timer period
   private val colorChangePerDepth = 1 // how may recolorings to do per refresh cycle (in 'r' random colour mode)
   private val timeFont = new Font("Digital-7", Font.Plain.id, 48)
   private var delayMs = defaultDelayMs
@@ -41,8 +40,7 @@ object Sierpinski { //extends SimpleSwingApplication {
     min(x , 2 * maxDepth - x)
   }
 
-  lazy val ui = mkUi()
-  def mkUi(): Panel = new Panel with SettableFgColor {
+  lazy val ui: Panel = new Panel with SettableFgColor {
     background = Color.yellow
     val panelSize = defaultSize + 2 * borderSize
     preferredSize = (panelSize, panelSize)
@@ -54,7 +52,8 @@ object Sierpinski { //extends SimpleSwingApplication {
       repaint()
     }
 
-    val timer = new Timer(delayMs / colorChangePerDepth, new jae.ActionListener() {
+    // this is actually going to control frame redraw
+    val timer = new Timer(delayMs.toInt / colorChangePerDepth, new jae.ActionListener() {
       def actionPerformed(e: jae.ActionEvent): Unit = {
         repaint()
       }
@@ -76,11 +75,12 @@ object Sierpinski { //extends SimpleSwingApplication {
           fgColor = Color.GREEN
         case Key.Up =>
           delayMs = max(delayMs / 2, 10)
-          timer.setDelay(delayMs)
-          println(delayMs)
+          timer.setDelay(delayMs.toInt)
+          println(s"delayMs: $delayMs")
         case Key.Down =>
           delayMs = min(delayMs * 2, 10 * 1000)
-          timer.setDelay(delayMs)
+          timer.setDelay(delayMs.toInt)
+          println(s"delayMs: $delayMs")
         case Key.P =>
           if (timer.isRunning) timer.stop else timer.start
         case Key.X | Key.Q | Key.Escape =>
@@ -174,33 +174,39 @@ object Sierpinski { //extends SimpleSwingApplication {
     */
   def main(args: Array[String]): Unit = {
     println("Sierpinski starting")
+    // to avoid modal dialog to block main we can use a boolean signal
+    val closed = new AtomicBoolean(false)
     def createAndOpen(): Unit = {
       println("Sierpinski creating")
-      val sizeDims = new java.awt.Dimension(800, 800)
-      val top = new Dialog()
+      val top = new Frame()
       top.peer.setUndecorated(false)
-      top.modal = true
       top.peer.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE)
+      top.peer.addWindowListener(new WindowAdapter() {
+        override def windowClosed(ev: java.awt.event.WindowEvent): Unit = {
+          closed.synchronized {
+            closed.set(true)
+            closed.notify()
+          }
+          super.windowClosed(ev)
+        }
+      })
+      val sizeDims = new java.awt.Dimension(800, 800)
       top.bounds = new Rectangle(0, 0, sizeDims.width, sizeDims.height)
       top.title = "Sierpinski's Triangle"
       top.contents = new BorderPanel { add(ui, BorderPanel.Position.Center) }
       top.pack().centerOnScreen()
-      top.open() // modal will block
-/*
-      val parent = new Dialog()
-      parent.modal = true
-      val small = new Dimension(80, 80)
-      parent.minimumSize = small
-      parent.size = small
-      parent.maximumSize = small
-      parent.location = Point(0 - small.width * 2, 0 - small.height * 2)
-      parent.open() // modal will wait
-*/
+      top.open()
       println("Sierpinski open completed")
     }
     SwingUtilities.invokeAndWait { new Runnable {
       override def run(): Unit = createAndOpen()
     }}
+    println("awaitng frame close")
+    closed.synchronized {
+      while (!closed.get()) {
+        closed.wait()
+      }
+    }
     println("Sierpinski ended")
   }
 }

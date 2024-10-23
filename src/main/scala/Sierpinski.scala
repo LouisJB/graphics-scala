@@ -26,6 +26,7 @@ import javax.swing.SwingUtilities
 object Sierpinski {
   import GraphicUtils._
   private val defaultSize = 800
+  private val titleMsg = "Sierpinski's Triangle"
   private val maxDepth = 7 // how many levels to go down, given you cannot see sub-pixel going too far in is not useful
   private val borderSize = 5
   private val defaultDelayMs = 1000.0 // refresh timer period
@@ -40,7 +41,7 @@ object Sierpinski {
     min(x , 2 * maxDepth - x)
   }
 
-  lazy val ui: Panel = new Panel with SettableFgColor {
+  def mkUi(frame: Frame): Panel = new Panel with SettableFgColor {
     background = Color.yellow
     val panelSize = defaultSize + 2 * borderSize
     preferredSize = (panelSize, panelSize)
@@ -60,6 +61,11 @@ object Sierpinski {
     })
     timer.start()
 
+    def setDelay(delayTimeMs: Double) = {
+      frame.peer.setTitle(s"$titleMsg - delay: ${delayTimeMs}ms")
+      timer.setDelay(delayTimeMs.toInt)
+    }
+
     listenTo(keys)
     reactions += {
       case KeyPressed(_, key, _, _) => key match {
@@ -74,13 +80,12 @@ object Sierpinski {
         case Key.G =>
           fgColor = Color.GREEN
         case Key.Up =>
-          delayMs = max(delayMs / 2, 10)
+          delayMs = max(delayMs / 2, 7.8125)
           timer.setDelay(delayMs.toInt)
-          println(s"delayMs: $delayMs")
+          setDelay(delayMs)
         case Key.Down =>
-          delayMs = min(delayMs * 2, 10 * 1000)
-          timer.setDelay(delayMs.toInt)
-          println(s"delayMs: $delayMs")
+          delayMs = min(delayMs * 2, 4 * 1000)
+          setDelay(delayMs)
         case Key.P =>
           if (timer.isRunning) timer.stop else timer.start
         case Key.X | Key.Q | Key.Escape =>
@@ -130,7 +135,7 @@ object Sierpinski {
           tri(midX, midY, s/2, depth + 1)
         }
       }
-      val currentSize = Math.min(ui.size.width, ui.size.height) - 2 * borderSize
+      val currentSize = Math.min(size.width, size.height) - 2 * borderSize
       tri((size.width - currentSize) / 2, (size.height - currentSize) / 2, currentSize)
 
       if (showTime) {
@@ -146,6 +151,7 @@ object Sierpinski {
 
   def top: Frame = new MainFrame {
     title = "Sierpinski's Triangle"
+    val ui = mkUi(this)
     contents = new BorderPanel { add(ui, BorderPanel.Position.Center) }
     pack().centerOnScreen()
     open()
@@ -176,12 +182,8 @@ object Sierpinski {
     println("Sierpinski starting")
     // to avoid modal dialog to block main we can use a boolean signal
     val closed = new AtomicBoolean(false)
-    def createAndOpen(): Unit = {
-      println("Sierpinski creating")
-      val top = new Frame()
-      top.peer.setUndecorated(false)
-      top.peer.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE)
-      top.peer.addWindowListener(new WindowAdapter() {
+    def addClosingHandler(frame: Frame): Unit = {
+      frame.peer.addWindowListener(new WindowAdapter() {
         override def windowClosed(ev: java.awt.event.WindowEvent): Unit = {
           closed.synchronized {
             closed.set(true)
@@ -190,12 +192,18 @@ object Sierpinski {
           super.windowClosed(ev)
         }
       })
-      val sizeDims = new java.awt.Dimension(800, 800)
-      top.bounds = new Rectangle(0, 0, sizeDims.width, sizeDims.height)
-      top.title = "Sierpinski's Triangle"
-      top.contents = new BorderPanel { add(ui, BorderPanel.Position.Center) }
-      top.pack().centerOnScreen()
-      top.open()
+    }
+    def createAndOpen(): Unit = {
+      println("Sierpinski creating")
+      val topFrame = new MainFrame()
+      topFrame.peer.setUndecorated(false)
+      topFrame.peer.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE)
+      addClosingHandler(topFrame)
+      topFrame.bounds = new Rectangle(0, 0, defaultSize, defaultSize)
+      topFrame.title = titleMsg
+      topFrame.contents = new BorderPanel { add(mkUi(topFrame), BorderPanel.Position.Center) }
+      topFrame.pack().centerOnScreen()
+      topFrame.open()
       println("Sierpinski open completed")
     }
     SwingUtilities.invokeAndWait { new Runnable {

@@ -118,7 +118,7 @@ object Sierpinski {
           )
         }
         if (randomColor)
-          g2d.setColor(rndColor())
+          g2d.setColor(rndColor)
         else
           g2d.setColor(Color.WHITE)
         g2d.fillPolygon(
@@ -225,5 +225,5 @@ trait SettableFgColor {
 
 object GraphicUtils {
   val rand = new Random()
-  def rndColor() = new Color(rand.nextFloat, rand.nextFloat, rand.nextFloat)
+  def rndColor = new Color(rand.nextFloat, rand.nextFloat, rand.nextFloat)
 }

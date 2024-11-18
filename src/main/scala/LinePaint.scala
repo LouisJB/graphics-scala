@@ -30,7 +30,7 @@ object LinePainting extends SimpleSwingApplication {
     reactions += {
       case e: MousePressed =>
         if (randomColor) {
-          setFgColor(rndColor())
+          setFgColor(rndColor)
         }
         moveTo(e.point)
         requestFocusInWindow()

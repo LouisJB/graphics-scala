@@ -31,7 +31,7 @@ object Shapes {
   private val titleMsg = "Shapes"
  
   private val borderSize = 10
-  private val delayMs = 100
+  private val delayMs = 500
   private var fgColor = Color.white
 
   def mkUi(frame: Frame): Panel = new Panel {
@@ -49,8 +49,8 @@ object Shapes {
     timer.start()
 
     val rand = new Random()
-    def rndArcSize = (abs(rand.nextInt()) % 359) + 1
-    def rndLineWidth = ((abs(rand.nextInt()) % 100) / 10 + 0.5).toFloat
+    def rndNoOfSides = (abs(rand.nextInt()) % 20) + 1
+    def rndLineWidth = ((abs(rand.nextInt()) % 150) / 10 + 0.2).toFloat
 
     override def paintComponent(g: Graphics2D): Unit = {
       super.paintComponent(g)
@@ -65,15 +65,18 @@ object Shapes {
       g2d.setColor(fgColor)
 
       // some fun with randomised parameters
-      val arcSize = rndArcSize
+      val noOfSides = rndNoOfSides
       val lineWidth = rndLineWidth
-      val minorScale = (abs(rand.nextInt()) % 7) + 2
+      val minorScale = (abs(rand.nextInt()) % 9) + 3
       val a = System.currentTimeMillis() % 359
+      val rotateStep = (abs(rand.nextInt()) % 20) + 2
+      val arcSize = (abs(rand.nextInt()) % 340) + 20
+
       g2d.setStroke(new BasicStroke(lineWidth))
 
-      (a to a + 30 by 5).map { angle =>
+      (a to a + arcSize by rotateStep).map { angle =>
         g2d.setColor(rndColor)
-        val (xs, ys, len) = toArrayXYPair(polyEx(size.width / 2, size.height / 2, maxSize / 2 - borderSize, arcSize, angle.toInt, Some(maxSize / minorScale - borderSize)))
+        val (xs, ys, len) = toArrayXYPair(polyEx(size.width / 2, size.height / 2, maxSize / 2 - borderSize, 360/noOfSides, angle.toInt, Some(maxSize / minorScale - borderSize)))
         g2d.drawPolygon(xs, ys, len)
       }
 /*
@@ -153,12 +156,12 @@ object ShapesUtils {
   def polyEx(x: Int, y: Int, size: Int, arc: Int = 1, initialAngle: Int = 0, maybeMinorAxis: Option[Int] = None) = {
     val minorAxis = maybeMinorAxis.getOrElse(size)
     (0 to 360 by arc).map ( a =>
-      val r = (a * 2 * PI) / 360
-      
-      val dx = sin(r) * size
-      val dy = cos(r) * minorAxis
-      val ddx = dx * cos(initialAngle) + dy * sin(initialAngle)
-      val ddy = dx * -1.0 * sin(initialAngle) + dy * cos(initialAngle)
+      val phi = (a * 2 * PI) / 360
+      val theta = (initialAngle * 2 * PI) / 360
+      val dx = sin(phi) * size
+      val dy = cos(phi) * minorAxis
+      val ddx = dx * cos(theta) + dy * sin(theta)
+      val ddy = dx * -1.0 * sin(theta) + dy * cos(theta)
       
       (x + ddx.toInt, y + ddy.toInt)
     ).toArray

@@ -11,13 +11,9 @@ import java.awt.RenderingHints
 import java.awt.image.BufferedImage
 import scala.util.Random
 import java.awt.Dimension
-import java.time.LocalTime
-import java.time.format.DateTimeFormatter
 import java.awt.BasicStroke
-import scala.swing.Font
 import scala.swing.BorderPanel
 import javax.swing.JFrame
-import scala.runtime.stdLibPatches.language.experimental.modularity
 import java.awt.Rectangle
 import java.util.concurrent.atomic.AtomicBoolean
 import java.awt.event.WindowAdapter
@@ -27,6 +23,7 @@ import javax.swing.SwingUtilities
 object Shapes {
   import GraphicUtils._
   import ShapesUtils._
+  import Utils._
   private val defaultSize = 800
   private val titleMsg = "Shapes"
  
@@ -48,13 +45,12 @@ object Shapes {
     })
     timer.start()
 
-    val rand = new Random()
-    def rndNoOfSides = (abs(rand.nextInt()) % 20) + 1
-    def rndLineWidth = ((abs(rand.nextInt()) % 150) / 10 + 0.2).toFloat
+    def rndNoOfSides = randInt(20, 1)
+    def rndLineWidth = randInt(150, 2) / 10
 
     override def paintComponent(g: Graphics2D): Unit = {
       super.paintComponent(g)
-      // set up an offscreen screen buffer to render of
+      // set up an offscreen screen buffer to render off
       val buffImg = new BufferedImage(size.width, size.height, BufferedImage.TYPE_INT_RGB)
       val g2d = buffImg.createGraphics()
       g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
@@ -67,16 +63,17 @@ object Shapes {
       // some fun with randomised parameters
       val noOfSides = rndNoOfSides
       val lineWidth = rndLineWidth
-      val minorScale = (abs(rand.nextInt()) % 9) + 3
-      val a = System.currentTimeMillis() % 359
-      val rotateStep = (abs(rand.nextInt()) % 20) + 2
-      val arcSize = (abs(rand.nextInt()) % 340) + 20
+      val minorScale = randInt(9, 3)
+      val rotateStep = randInt(30, 2)
+      val arcSize = randInt(340, 20)
+      val startAngle = System.currentTimeMillis() % 359
 
-      g2d.setStroke(new BasicStroke(lineWidth))
+      g2d.setStroke(new BasicStroke(lineWidth.toFloat))
 
-      (a to a + arcSize by rotateStep).map { angle =>
+      (startAngle to startAngle + arcSize by rotateStep).map { angle =>
         g2d.setColor(rndColor)
-        val (xs, ys, len) = toArrayXYPair(polyEx(size.width / 2, size.height / 2, maxSize / 2 - borderSize, 360/noOfSides, angle.toInt, Some(maxSize / minorScale - borderSize)))
+        val (xs, ys, len) =
+          toArrayXYPair(polyEx(size.width / 2, size.height / 2, maxSize / 2 - borderSize, 360/noOfSides, angle.toInt, Some(maxSize / minorScale - borderSize)))
         g2d.drawPolygon(xs, ys, len)
       }
 /*
@@ -95,14 +92,8 @@ object Shapes {
     }
   }
 
-  private def mkPolygon(points : List[(Int, Int)]) =
-    points.foldRight(new Polygon())((p, pgn) => { pgn.addPoint.tupled(p); pgn })
-
-  private def currentTimeStr =
-    LocalTime.now().format(DateTimeFormatter.ofPattern("hh:mm:ss"))
-
   def main(args: Array[String]): Unit = {
-    println("Sierpinski starting")
+    println(s"Starting: $titleMsg")
     // to avoid modal dialog to block main we can use a boolean signal
     val closed = new AtomicBoolean(false)
     def addClosingHandler(frame: Frame): Unit = {
@@ -138,13 +129,13 @@ object Shapes {
         closed.wait()
       }
     }
-    println("Sierpinski ended")
+    println("Ended")
   }
 }
 
 object ShapesUtils {
   // create array of x-y points
-  //non-rotated polygon around a circle
+  // non-rotated polygon around a circle
   def poly(x: Int, y: Int, size: Int, arc: Int = 1, initialAngle: Int = 0) = {
     (0 to 360 by arc).map ( a =>
       val r = ((a + initialAngle) * 2 * PI) / 360
@@ -181,4 +172,10 @@ object ShapesUtils {
 
   def toArrayXYPair(points: Array[(Int, Int)]) =
     (points.map(_._1), points.map(_._2), points.length)
+}
+
+object Utils {
+  lazy val rand = new Random()
+  def randInt(range: Int, min: Int = 0) =
+    (abs(rand.nextInt()) % range) + min
 }

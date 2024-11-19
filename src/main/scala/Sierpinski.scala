@@ -16,7 +16,6 @@ import java.awt.BasicStroke
 import scala.swing.Font
 import scala.swing.BorderPanel
 import javax.swing.JFrame
-import scala.runtime.stdLibPatches.language.experimental.modularity
 import java.awt.Rectangle
 import java.util.concurrent.atomic.AtomicBoolean
 import java.awt.event.WindowAdapter

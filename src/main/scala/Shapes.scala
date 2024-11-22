@@ -118,7 +118,7 @@ object Shapes {
       topFrame.contents = new BorderPanel { add(mkUi(topFrame), BorderPanel.Position.Center) }
       topFrame.pack().centerOnScreen()
       topFrame.open()
-      println("Sierpinski open completed")
+      println("Open completed")
     }
     SwingUtilities.invokeAndWait { new Runnable {
       override def run(): Unit = createAndOpen()

@@ -15,7 +15,6 @@ import java.awt.BasicStroke
 import scala.swing.BorderPanel
 import javax.swing.JFrame
 import java.awt.Rectangle
-import java.util.concurrent.atomic.AtomicBoolean
 import java.awt.event.WindowAdapter
 import javax.swing.SwingUtilities
 
@@ -94,25 +93,13 @@ object Shapes {
 
   def main(args: Array[String]): Unit = {
     println(s"Starting: $titleMsg")
-    // to avoid modal dialog to block main we can use a boolean signal
-    val closed = new AtomicBoolean(false)
-    def addClosingHandler(frame: Frame): Unit = {
-      frame.peer.addWindowListener(new WindowAdapter() {
-        override def windowClosed(ev: java.awt.event.WindowEvent): Unit = {
-          closed.synchronized {
-            closed.set(true)
-            closed.notify()
-          }
-          super.windowClosed(ev)
-        }
-      })
-    }
+    val winCloser = new WindowCloser()
     def createAndOpen(): Unit = {
       println(s"Creating GUI for: $titleMsg")
       val topFrame = new MainFrame()
       topFrame.peer.setUndecorated(false)
       topFrame.peer.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE)
-      addClosingHandler(topFrame)
+      winCloser.addClosingHandler(topFrame)
       topFrame.bounds = new Rectangle(0, 0, defaultSize, defaultSize)
       topFrame.title = titleMsg
       topFrame.contents = new BorderPanel { add(mkUi(topFrame), BorderPanel.Position.Center) }
@@ -123,12 +110,7 @@ object Shapes {
     SwingUtilities.invokeAndWait { new Runnable {
       override def run(): Unit = createAndOpen()
     }}
-    println("awaitng frame close")
-    closed.synchronized {
-      while (!closed.get()) {
-        closed.wait()
-      }
-    }
+    winCloser.waitOnClose()
     println("Ended")
   }
 }

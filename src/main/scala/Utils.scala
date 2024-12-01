@@ -37,3 +37,7 @@ object GraphicUtils {
   val rand = new Random()
   def rndColor = new Color(rand.nextFloat, rand.nextFloat, rand.nextFloat)
 }
+
+object MathUtils {
+  def sqr(x : Int) = x * x
+}

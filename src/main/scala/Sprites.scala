@@ -12,8 +12,6 @@ trait SpriteType {
   def move(size: Dimension): Unit
   def draw(g: Graphics2D): Unit
 
-  def size: Int
-
   def collision(s: SpriteType): Boolean
   def collided(s: SpriteType): SpriteType
 }

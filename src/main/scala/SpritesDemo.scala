@@ -6,18 +6,15 @@ import scala.swing.{Frame, MainFrame, Panel, SimpleSwingApplication}
 import javax.swing.Timer
 import java.awt.{Color, Graphics2D, Point, geom}
 import java.awt.{event => jae}
-import java.awt.Polygon
 import java.awt.RenderingHints
 import java.awt.image.BufferedImage
 import scala.util.Random
 import java.awt.Dimension
-import java.awt.BasicStroke
 import scala.swing.BorderPanel
 import javax.swing.JFrame
-import java.awt.Rectangle
-import java.util.concurrent.atomic.AtomicBoolean
-import java.awt.event.WindowAdapter
 import javax.swing.SwingUtilities
+import MathUtils._
+import java.awt.Rectangle
 
 case class XY(x: Int, y: Int)
 
@@ -32,11 +29,12 @@ object Sprites {
   private val frameRate = 25
   private val defaultDelayMs = 1000.0 / frameRate
   private val delayMs = defaultDelayMs
+  private val noObjects = 20
   private val maxSpeed = 20
 
   case class BouncingSprite(var x: Int, var y: Int, var height: Int, var width: Int) extends SpriteType {
-    val color = Color.white
-    var speed = XY(1, 1)
+    protected var color = Color.white
+    protected var speed = XY(1, 1)
     override def draw(g: Graphics2D) = {
       val c = g.getColor()
       g.setColor(color)
@@ -64,14 +62,8 @@ object Sprites {
       y = min(size.height - height, y + speed.y)
     }
 
-    def size: Int = width / 2
-
-    def center = centerOf(this): (Int, Int)
-    def centerOf(s : SpriteType): (Int, Int) = (s.x + s.width / 2, s.y + s.height / 2)
-
-    import MathUtils._
     def collision(s: SpriteType): Boolean =
-      sqrt(sqr(center._1 - centerOf(s)._1) + sqr(center._2 - centerOf(s)._2)) < size + s.size
+      sqrt(sqr(center._1 - centerOf(s)._1) + sqr(center._2 - centerOf(s)._2)) < size.x + sizeOf(s).x
 
     def collided(other: SpriteType): SpriteType = {
       if (other.isInstanceOf[BouncingSprite]) {
@@ -80,11 +72,20 @@ object Sprites {
           (abs(speed.x) + abs(s.speed.x)) / 2 * speed.x.sign * s.speed.x.sign,
           (abs(speed.y) + abs(s.speed.y)) / 2 * speed.y.sign * s.speed.y.sign
         )
-        x + speed.x.sign * size
-        y + speed.y.sign * size
+        x + speed.x.sign * size.x
+        y + speed.y.sign * size.y
+        color = rndColor
       }
       this
     }
+
+    def size = sizeOf(this)
+    def sizeOf(s: SpriteType): XY =
+      XY(width / 2, height / 2)
+
+    def center = centerOf(this): (Int, Int)
+    def centerOf(s : SpriteType): (Int, Int) =
+      (s.x + s.width / 2, s.y + s.height / 2)
   }
 
   private val sprites = new SpriteManager()
@@ -103,11 +104,29 @@ object Sprites {
     })
     timer.start()
 
-    (1 to 200).foreach { a => 
+    def setDelay(delayTimeMs: Double) = {
+      frame.peer.setTitle(s"$titleMsg - delay: ${delayTimeMs}ms")
+      timer.setDelay(delayTimeMs.toInt)
+    }
+
+    listenTo(keys)
+    reactions += {
+      case KeyPressed(_, key, _, _) => key match {
+        case Key.P =>
+          if (timer.isRunning) timer.stop else timer.start
+        case Key.X | Key.Q | Key.Escape =>
+          System.exit(0)
+        case _ =>
+      }
+      case KeyReleased(_, Key.Space, _, _) =>
+    }
+
+    (1 to noObjects).foreach { a =>
+      val xDir = if (randInt(2, 0) > 0) 1 else -1
+      val yDir  = if (randInt(2, 0) > 0) 1 else -1
+
       val sprite = new BouncingSprite(randInt(panelSize, 1), randInt(panelSize, 1), 20, 20) {
-        override val color = rndColor
-        val xDir = if (randInt(2, 0) > 0) 1 else -1
-        val yDir = if (randInt(2, 0) > 0) 1 else -1
+        color = rndColor
         speed = XY(randInt(maxSpeed, 1) * xDir, randInt(maxSpeed, 1) * yDir)
       }
       sprites.add(sprite)  

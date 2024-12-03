@@ -15,6 +15,7 @@ import javax.swing.JFrame
 import javax.swing.SwingUtilities
 import MathUtils._
 import java.awt.Rectangle
+import java.awt.AlphaComposite
 
 case class XY(x: Int, y: Int)
 
@@ -26,15 +27,19 @@ object Sprites {
   private val titleMsg = "Sprites"
  
   private val borderSize = 10
-  private val frameRate = 25
+  private val frameRate = 20
   private val defaultDelayMs = 1000.0 / frameRate
   private val delayMs = defaultDelayMs
   private val noObjects = 20
   private val maxSpeed = 20
+  private val objectSize = 25
+  private val trailLen = 3
 
   case class BouncingSprite(var x: Int, var y: Int, var height: Int, var width: Int) extends SpriteType {
     protected var color = Color.white
     protected var speed = XY(1, 1)
+    protected var collided = 0
+
     override def draw(g: Graphics2D) = {
       val c = g.getColor()
       g.setColor(color)
@@ -60,6 +65,12 @@ object Sprites {
 
       x = min(size.width - width, x + speed.x)
       y = min(size.height - height, y + speed.y)
+
+      if (collided > 0) {
+        collided = collided - 1
+        if (collided == 0)
+          color = rndColor
+      }
     }
 
     def collision(s: SpriteType): Boolean =
@@ -72,9 +83,10 @@ object Sprites {
           (abs(speed.x) + abs(s.speed.x)) / 2 * speed.x.sign * s.speed.x.sign,
           (abs(speed.y) + abs(s.speed.y)) / 2 * speed.y.sign * s.speed.y.sign
         )
-        x + speed.x.sign * size.x
-        y + speed.y.sign * size.y
-        color = rndColor
+        x = x + speed.x.sign * size.x
+        y = y + speed.y.sign * size.y
+        collided = 5
+        color = Color.white
       }
       this
     }
@@ -114,6 +126,10 @@ object Sprites {
       case KeyPressed(_, key, _, _) => key match {
         case Key.P =>
           if (timer.isRunning) timer.stop else timer.start
+        case Key.C =>
+          sprites.clear()
+        case Key.N =>
+          mkObjects()
         case Key.X | Key.Q | Key.Escape =>
           System.exit(0)
         case _ =>
@@ -121,26 +137,34 @@ object Sprites {
       case KeyReleased(_, Key.Space, _, _) =>
     }
 
-    (1 to noObjects).foreach { a =>
-      val xDir = if (randInt(2, 0) > 0) 1 else -1
-      val yDir  = if (randInt(2, 0) > 0) 1 else -1
+    def mkObjects() = {
+      (1 to noObjects).foreach { a =>
+        val xDir = if (randInt(2, 0) > 0) 1 else -1
+        val yDir = if (randInt(2, 0) > 0) 1 else -1
 
-      val sprite = new BouncingSprite(randInt(panelSize, 1), randInt(panelSize, 1), 20, 20) {
-        color = rndColor
-        speed = XY(randInt(maxSpeed, 1) * xDir, randInt(maxSpeed, 1) * yDir)
+        val sprite = new BouncingSprite(randInt(panelSize, 1), randInt(panelSize, 1), objectSize, objectSize) {
+          color = rndColor
+          speed = XY(randInt(maxSpeed, 1) * xDir, randInt(maxSpeed, 1) * yDir)
+        }
+        sprites.add(sprite)
       }
-      sprites.add(sprite)  
     }
+    mkObjects()
 
     override def paintComponent(g: Graphics2D): Unit = {
       super.paintComponent(g)
       // set up an offscreen screen buffer to render off
-      val buffImg = new BufferedImage(size.width, size.height, BufferedImage.TYPE_INT_RGB)
+      val buffImg = new BufferedImage(size.width, size.height, BufferedImage.TYPE_INT_ARGB)
       val g2d = buffImg.createGraphics()
       g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
       
-      sprites.move(size)
-      sprites.collision()
+      (1 to trailLen).map { z =>
+        val opacity = z/trailLen.toFloat
+        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, opacity))
+        sprites.moveAndCollide(size)
+        sprites.draw(g2d)
+      }
+
       sprites.draw(g2d)
 
       // draw out the offline screen buffer to the displayed graphics screen, to display it
@@ -169,7 +193,6 @@ object Sprites {
     SwingUtilities.invokeAndWait { new Runnable {
       override def run(): Unit = createAndOpen()
     }}
-    println("awaitng frame close")
     winCloser.waitOnClose()
     println("Ended")
   }

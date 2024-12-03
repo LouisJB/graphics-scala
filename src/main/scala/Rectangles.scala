@@ -136,7 +136,6 @@ object Rectangles {
     SwingUtilities.invokeAndWait { new Runnable {
       override def run(): Unit = createAndOpen()
     }}
-    println("awaitng frame close")
     winCloser.waitOnClose()
     println("Ended")
   }

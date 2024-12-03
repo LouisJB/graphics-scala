@@ -32,20 +32,27 @@ class SpriteManager() {
 
   def add(sprite: SpriteType) =
     sprites = sprite :: sprites
+  def clear() = sprites = Nil
+
   def move(size: Dimension): Unit =
     sprites.foreach(_.move(size))
   def collision() = {
-    0.until(sprites.length).map { i =>
-        (i + 1).until(sprites.length).map { j =>
+    (0 until sprites.length).map { i =>
+        ((i + 1) until sprites.length).map { j =>
           val s1 = sprites(i)
           val s2 = sprites(j)
           if (s1.collision(s2)) {
             s2.collided(s1.collided(s2))
             true
-          } else false
+          }
+          else false
       }
     }
   }
   def draw(g: Graphics2D): Unit =
     sprites.foreach(_.draw(g))
+  def moveAndCollide(size: Dimension) = {
+    move(size)
+    collision()
+  }
 }

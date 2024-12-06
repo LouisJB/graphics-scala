@@ -38,19 +38,36 @@ object Sprites {
   private val allowStickyCollisions = false
   private val randColour = true
 
-  case class BouncingSprite(var x: Int, var y: Int, var height: Int, var width: Int) extends SpriteType {
+  trait Mode
+  case object Ball extends Mode
+  case object Koch extends Mode
+  case object Tri extends Mode
+
+  case class BouncingSprite(var x: Int, var y: Int, var height: Int, var width: Int, mode: Mode = Ball) extends SpriteType {
     protected var color = Color.white
     protected var speed = XY(1, 1)
     protected var collided = 0
     protected val opacity = (randInt(5, 0) + 3) / 10.0f
+    private val startAngle = randInt(120, 0)
+    private val numberSides = randInt(4, 1)
 
-    val ks = KockSnowflake(width, height, randInt(4, 1))
+    val ks = KockSnowflake(width, height, randInt(5, 1))
     override def draw(g: Graphics2D) = {
       val c = g.getColor()
       g.setColor(color)
       g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, opacity))
-      g.fillOval(x, y, width, height)
-      //ks.draw(g, x, y)
+      mode match {
+        case Ball =>
+          g.fillOval(x, y, width, height)
+        case Koch =>
+          ks.draw(g, x, y)
+        case Tri =>
+          (startAngle to startAngle + 80 by 20).map { angle =>
+            val (xs, ys, len) =
+              toArrayXYPair(polyEx(x + width / 2, y + height / 2, width / 2, 360 / numberSides, angle.toInt))
+            g.drawPolygon(xs, ys, len)
+          }
+      }
       g.setColor(c)
     }
     def move(size: Dimension) = {
@@ -154,7 +171,13 @@ object Sprites {
         val xDir = if (randInt(2, 0) > 0) 1 else -1
         val yDir = if (randInt(2, 0) > 0) 1 else -1
 
-        val sprite = new BouncingSprite(randInt(panelSize, 1), randInt(panelSize, 1), objectSize, objectSize) {
+        val mode = randInt(3, 0) match {
+          case 0 => Ball
+          case 1 => Koch
+          case 2 => Tri
+        }
+
+        val sprite = new BouncingSprite(randInt(panelSize, 1), randInt(panelSize, 1), objectSize, objectSize, mode) {
           if (randColour)
             color = rndColor
           speed = XY(randInt(maxSpeed, 1) * xDir, randInt(maxSpeed, 1) * yDir)

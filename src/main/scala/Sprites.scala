@@ -28,13 +28,17 @@ class Sprite(var id: String, var x: Int, var y: Int, var height: Int, var width:
   def collided(s: SpriteType): SpriteType = this
 }
 
-class SpriteManager(enabled: Boolean = true, collisionEnabled: Boolean = false, visible: Boolean = true) {
+class SpriteManager(enabled: Boolean = true, initialCollisionEnabled: Boolean = false, visible: Boolean = true) {
   private var sprites: List[SpriteType] = Nil
+  private var collisionEnabled = initialCollisionEnabled
   def add(sprite: SpriteType) =
     sprites = sprite :: sprites
   def clear() = sprites = Nil
 
   def length = sprites.length
+
+  def setCollisionEnabled(enabled: Boolean) =
+    collisionEnabled = enabled
 
   def move(size: Dimension): Unit = if (enabled) {
     sprites.foreach(_.move(size))
@@ -59,5 +63,10 @@ class SpriteManager(enabled: Boolean = true, collisionEnabled: Boolean = false, 
     move(size)
     if (collisionEnabled)
       collision()
+  }
+
+  def update(g: Graphics2D, size: Dimension) = {
+    moveAndCollide(size)
+    draw(g)
   }
 }

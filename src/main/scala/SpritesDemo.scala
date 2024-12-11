@@ -32,7 +32,7 @@ object Sprites {
   private var collisionEnabled = true
   private var showStats = false
 
-  private val noObjects = 20
+  private val noObjects = 10
   private val maxSpeed = 10
   private val objectSize = 75
   private val trailLen = 2
@@ -47,6 +47,7 @@ object Sprites {
   case object Ball extends Mode
   case object Koch extends Mode
   case object Tri extends Mode
+  case object StartFlake extends Mode
   case object Text extends Mode
 
   case class BouncingSprite(id: String, var x: Int, var y: Int, var height: Int, var width: Int, mode: Mode = Ball) extends SpriteType {
@@ -66,13 +67,22 @@ object Sprites {
       g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, opacity))
       mode match {
         case Ball =>
-          g.fillOval(x, y, width, height)
+          (width to 1).by(-10).map { w =>
+            g.setColor(brighter(g.getColor()))
+            g.fillOval(x+(width-w)/2, y+(height-w)/2, w, w)
+          }
         case Koch =>
           ks.draw(g, x, y)
         case Tri =>
-          (startAngle to startAngle + 80 by 20).map { angle =>
+          (startAngle to startAngle + 100 by 20).map { angle =>
             val (xs, ys, len) =
               toArrayXYPair(polyEx(x + width / 2, y + height / 2, width / 2, 360 / numberSides, angle.toInt))
+            g.drawPolygon(xs, ys, len)
+          }
+        case StartFlake =>
+          (startAngle to startAngle + 180 by 10).map { angle =>
+            val (xs, ys, len) =
+              toArrayXYPair(polyEx(x + width / 2, y + height / 2, randInt(width, 1) / 2, 180, angle.toInt))
             g.drawPolygon(xs, ys, len)
           }
         case Text =>
@@ -180,6 +190,7 @@ object Sprites {
           sprites.clear()
         case Key.C =>
           collisionEnabled = !collisionEnabled
+          sprites.setCollisionEnabled(collisionEnabled)
         case Key.N =>
           mkObjects()
         case Key.S =>
@@ -196,11 +207,12 @@ object Sprites {
         val xDir = if (randInt(2, 0) > 0) 1 else -1
         val yDir = if (randInt(2, 0) > 0) 1 else -1
 
-        val mode = randInt(4, 0) match {
+        val mode = randInt(5, 0) match {
           case 0 => Ball
           case 1 => Koch
           case 2 => Tri
-          case 3 => Text
+          case 3 => StartFlake
+          case 4 => Text
         }
         val newSize = if (randomSize)
           randInt(objectSize, 20)
@@ -233,13 +245,8 @@ object Sprites {
       (1 to trailLen).map { z =>
         val opacity = z/trailLen.toFloat
         g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, opacity))
-        sprites.move(size)
-        if (collisionEnabled)
-          sprites.collision()
-        sprites.draw(g2d)
+        sprites.update(g2d, size)
       }
-
-      sprites.draw(g2d)
 
       if (showStats) {
         g.setColor(fgColor)

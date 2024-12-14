@@ -11,16 +11,75 @@ import scala.swing.BorderPanel
 import java.awt.Rectangle
 import java.awt.image.BufferedImage
 import java.awt.RenderingHints
+import scala.swing.event.Key
+import scala.swing.event._
 
 
 object MandelbrotDemo {
   private val defaultSize = 800
   private val titleMsg = "Mandelbrot"
- 
+  private var showStats = false
+  private val defaultScale = 300.0
+  private val defaultXloc = - 2.5
+  private val defaultYloc = - 1.5
+  private val defaultDepth = 20
+  private val maxDepth = 125.0
+
+  private var scale = defaultScale
+  private var xLoc = defaultXloc
+  private var yLoc = defaultYloc
+  private var depth = defaultDepth
+
+  def reset() = {
+    scale = defaultScale
+    xLoc = defaultXloc
+    yLoc = defaultYloc
+    depth = defaultDepth
+  }
+
   def mkUi(frame: Frame): Panel = new Panel {
     val panelSize = defaultSize
     preferredSize = Dimension(panelSize, panelSize)
     focusable = true
+
+    listenTo(keys)
+    reactions += {
+      case KeyPressed(_, key, modifiers, _) => key match {
+        case Key.Plus | Key.I =>
+          scale = scale * 2.0
+        case Key.Minus =>
+          scale = scale  / 2.0
+        case Key.Up => if (modifiers == Key.Modifier.Shift)
+          yLoc *= 1.01
+        else
+          yLoc *= 1.1
+        case Key.Down => if (modifiers == Key.Modifier.Shift)
+          yLoc *= 0.99
+        else
+          yLoc *= 0.9
+        case Key.Left => if (modifiers == Key.Modifier.Shift)
+          xLoc *= 1.01
+        else
+          xLoc *= 1.1
+        case Key.Right => if (modifiers == Key.Modifier.Shift)
+          xLoc *= 0.99
+        else
+          xLoc *= 0.9
+        case Key.D =>
+          depth = min(depth * 1.2, maxDepth).toInt + 1
+        case Key.E =>
+          depth = max(depth / 1.2, 3).toInt - 1
+        case Key.R =>
+          reset()
+        case Key.S =>
+          showStats = !showStats
+        case Key.X | Key.Q | Key.Escape =>
+          System.exit(0)
+        case _ =>
+      }
+      case KeyReleased(_, _, _, _) =>
+      repaint()
+    }
 
     override def paintComponent(g: Graphics2D): Unit = {
       super.paintComponent(g)
@@ -30,8 +89,14 @@ object MandelbrotDemo {
       val g2d = buffImg.createGraphics()
       g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
 
-      Mandelbrot.draw(g2d, size)
-      
+      Mandelbrot.draw(g2d, size, xLoc, yLoc, scale, depth)
+
+      if (showStats) {
+        g2d.setColor(Color.white)
+        g2d.drawString(s"scale: $scale, depth: $depth", 10, 20)
+        g2d.drawString(s"xLoc: $xLoc, yLoc: $yLoc", 10, 40)
+      }
+
       // draw out the offline screen buffer to the displayed graphics screen, to display it
       val g2dr = g // g.asInstanceOf[Graphics2D]
       g2dr.drawImage(buffImg, 0, 0, null)
@@ -64,13 +129,9 @@ object MandelbrotDemo {
 }
 
 object Mandelbrot {
-  val iterMax = 1000
-
-  def draw(g: Graphics2D, size: Dimension) = {
-    val xLoc = - 2.5
-    val yLoc = - 1.5
-    val xScale = 300.0
-    val yScale = 300.0
+  def draw(g: Graphics2D, size: Dimension, xLoc: Double, yLoc: Double, scale: Double, depth: Int) = {
+    val xScale = scale
+    val yScale = xScale
 
     for (i <- 0 to size.width) {
       for (j <- 0 to size.height) {
@@ -85,7 +146,7 @@ object Mandelbrot {
         while (z.abs < 2 && !inSet) {         
           z = z.squared.plus(c)
           iterations += 1
-          if (iterations == iterMax)
+          if (iterations == depth)
             inSet = true
         }
 
@@ -93,9 +154,9 @@ object Mandelbrot {
           Color.black
         else 
           new Color(
-            pow(iterations, 5).toInt % 255,
+            pow(iterations, 3).toInt % 255,
             pow(iterations, 7).toInt % 255,
-            pow(iterations, 11).toInt % 255)
+            pow(iterations, 5).toInt % 255)
 
         g.setColor(colour)
         g.drawRect(i, j, 1, 1)

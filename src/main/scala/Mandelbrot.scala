@@ -13,25 +13,42 @@ import java.awt.image.BufferedImage
 import java.awt.RenderingHints
 import scala.swing.event.Key
 import scala.swing.event._
+import scala.swing.Component
 
 
 object MandelbrotDemo {
   private val defaultSize = 800
   private val titleMsg = "Mandelbrot"
-  private var showStats = false
-  private val defaultScale = 300.0
-  private val defaultXloc = - 2.5
+  private val zoomFactor = 2.0
+  private val defaultScale = 250.0
+  private val defaultXloc = - 2.25
   private val defaultYloc = - 1.5
-  private val defaultDepth = 20
+  private val defaultDepth = 15
   private val maxDepth = 125.0
 
-  private var scale = defaultScale
+  // event and draw from awt so actually safe mutability here
+  private var xScale = defaultScale
+  private var yScale = defaultScale
   private var xLoc = defaultXloc
   private var yLoc = defaultYloc
   private var depth = defaultDepth
+  private var showStats = false
+  private var showDragRect = false
+
+  private var mouseLoc = new Point(0, 0)
+  private var mouseDownPoint = new Point(0, 0)
+  private var draggedToPoint = new Point(0, 0)
+
+  def rescale(upPoint: Point, size: Dimension) = {
+    xLoc = xLoc + mouseDownPoint.x / xScale
+    yLoc = yLoc + mouseDownPoint.y / yScale
+    xScale  = xScale * size.width / abs(upPoint.x - mouseDownPoint.x)
+    yScale  = yScale * size.height / abs(upPoint.y - mouseDownPoint.y)
+  }
 
   def reset() = {
-    scale = defaultScale
+    xScale = defaultScale
+    yScale = defaultScale
     xLoc = defaultXloc
     yLoc = defaultYloc
     depth = defaultDepth
@@ -43,12 +60,30 @@ object MandelbrotDemo {
     focusable = true
 
     listenTo(keys)
+    listenTo(mouse.clicks, mouse.moves)
     reactions += {
+      case MousePressed(ource: Component, point: Point, modifiers: Key.Modifiers,
+                        clicks: Int, triggersPopup: Boolean) =>
+        mouseDownPoint = point
+      case MouseMoved(source: Component, point: Point, modifiers: Key.Modifiers) =>
+        mouseLoc = point
+        repaint()
+      case  MouseDragged(source: Component, point: Point, modifiers: Key.Modifiers) =>
+        showDragRect = true
+        draggedToPoint = point
+        repaint()
+      case MouseReleased(source: Component, point: Point, modifiers: Key.Modifiers,
+                         clicks: Int, triggersPopup: Boolean) =>
+        showDragRect = false
+        rescale(point, size) // apply the zoom and new location rescaling on end drag rect
+        repaint()
       case KeyPressed(_, key, modifiers, _) => key match {
         case Key.Plus | Key.I =>
-          scale = scale * 2.0
+          xScale = xScale * zoomFactor
+          yScale = yScale * zoomFactor
         case Key.Minus =>
-          scale = scale  / 2.0
+          xScale = xScale / zoomFactor
+          yScale = yScale / zoomFactor
         case Key.Up => if (modifiers == Key.Modifier.Shift)
           yLoc *= 1.01
         else
@@ -89,12 +124,21 @@ object MandelbrotDemo {
       val g2d = buffImg.createGraphics()
       g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
 
-      Mandelbrot.draw(g2d, size, xLoc, yLoc, scale, depth)
+      Mandelbrot.draw(g2d, size, xLoc, yLoc, xScale, yScale, depth)
 
+      if (showDragRect) {
+        g2d.setColor(Color.white)
+        g2d.drawRect(
+          min(mouseDownPoint.x, draggedToPoint.x), min(mouseDownPoint.y, draggedToPoint.y),
+          abs(mouseDownPoint.x - draggedToPoint.x), abs(mouseDownPoint.y - draggedToPoint.y)
+        )
+      }
+  
       if (showStats) {
         g2d.setColor(Color.white)
-        g2d.drawString(s"scale: $scale, depth: $depth", 10, 20)
+        g2d.drawString(s"xScale: $xScale, yScale: $yScale, depth: $depth", 10, 20)
         g2d.drawString(s"xLoc: $xLoc, yLoc: $yLoc", 10, 40)
+        g2d.drawString(s"mouse: ${mouseLoc.x}, ${mouseLoc.y}", 10, 60)
       }
 
       // draw out the offline screen buffer to the displayed graphics screen, to display it
@@ -129,10 +173,7 @@ object MandelbrotDemo {
 }
 
 object Mandelbrot {
-  def draw(g: Graphics2D, size: Dimension, xLoc: Double, yLoc: Double, scale: Double, depth: Int) = {
-    val xScale = scale
-    val yScale = xScale
-
+  def draw(g: Graphics2D, size: Dimension, xLoc: Double, yLoc: Double, xScale: Double, yScale: Double, depth: Int) = {
     for (i <- 0 to size.width) {
       for (j <- 0 to size.height) {
         val x = i / xScale + xLoc

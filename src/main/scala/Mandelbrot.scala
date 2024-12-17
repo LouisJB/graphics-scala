@@ -14,17 +14,20 @@ import java.awt.RenderingHints
 import scala.swing.event.Key
 import scala.swing.event._
 import scala.swing.Component
+import javax.swing.Timer
+import java.awt.{event => jae}
 
 
 object MandelbrotDemo {
   private val defaultSize = 800
   private val titleMsg = "Mandelbrot"
   private val zoomFactor = 2.0
+  private val pixSize = 1
   private val defaultScale = 250.0
   private val defaultXloc = - 2.25
   private val defaultYloc = - 1.5
   private val defaultDepth = 15
-  private val maxDepth = 125.0
+  private val delayMs = 500.0
 
   // event and draw from awt so actually safe mutability here
   private var xScale = defaultScale
@@ -39,6 +42,8 @@ object MandelbrotDemo {
   private var mouseDownPoint = new Point(0, 0)
   private var draggedToPoint = new Point(0, 0)
 
+  private var colourOffset = 0
+
   def rescale(upPoint: Point, size: Dimension) = {
     xLoc = xLoc + mouseDownPoint.x / xScale
     yLoc = yLoc + mouseDownPoint.y / yScale
@@ -52,12 +57,20 @@ object MandelbrotDemo {
     xLoc = defaultXloc
     yLoc = defaultYloc
     depth = defaultDepth
+    colourOffset = 0
   }
 
   def mkUi(frame: Frame): Panel = new Panel {
     val panelSize = defaultSize
     preferredSize = Dimension(panelSize, panelSize)
     focusable = true
+
+    val timer = new Timer(delayMs.toInt, new jae.ActionListener() {
+      def actionPerformed(e: jae.ActionEvent): Unit = {
+        colourOffset += 1
+        repaint()
+      }
+    })
 
     listenTo(keys)
     listenTo(mouse.clicks, mouse.moves)
@@ -101,13 +114,15 @@ object MandelbrotDemo {
         else
           xLoc *= 0.9
         case Key.D =>
-          depth = min(depth * 1.2, maxDepth).toInt + 1
+          depth = min(depth * 1.2 + 1, Mandelbrot.maxDepth.toDouble).toInt
         case Key.E =>
           depth = max(depth / 1.2, 3).toInt - 1
         case Key.R =>
           reset()
         case Key.S =>
           showStats = !showStats
+        case Key.C =>
+          if (timer.isRunning) timer.stop else timer.start
         case Key.X | Key.Q | Key.Escape =>
           System.exit(0)
         case _ =>
@@ -115,6 +130,8 @@ object MandelbrotDemo {
       case KeyReleased(_, _, _, _) =>
       repaint()
     }
+
+    private val mamdelbrot = Mandelbrot(pixSize)
 
     override def paintComponent(g: Graphics2D): Unit = {
       super.paintComponent(g)
@@ -124,7 +141,7 @@ object MandelbrotDemo {
       val g2d = buffImg.createGraphics()
       g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
 
-      Mandelbrot.draw(g2d, size, xLoc, yLoc, xScale, yScale, depth)
+      mamdelbrot.draw(g2d, size, xLoc, yLoc, xScale, yScale, depth, colourOffset)
 
       if (showDragRect) {
         g2d.setColor(Color.white)
@@ -172,10 +189,20 @@ object MandelbrotDemo {
   }
 }
 
-object Mandelbrot {
-  def draw(g: Graphics2D, size: Dimension, xLoc: Double, yLoc: Double, xScale: Double, yScale: Double, depth: Int) = {
-    for (i <- 0 to size.width) {
-      for (j <- 0 to size.height) {
+case class Mandelbrot(pixSize: Int) {
+  import Mandelbrot._
+  import Complex._
+  val colourPallet = (0 to maxDepth).map{ i =>
+    i -> new Color(
+        pow(i, 3).toInt % 255,
+        pow(i, 7).toInt % 255,
+        pow(i, 5).toInt % 255
+      )
+  }.toMap
+
+  def draw(g: Graphics2D, size: Dimension, xLoc: Double, yLoc: Double, xScale: Double, yScale: Double, depth: Int, colourOffset: Int = 0) = {
+    for (i <- 0 to size.width by pixSize) {
+      for (j <- 0 to size.height by pixSize) {
         val x = i / xScale + xLoc
         val y = j / yScale + yLoc
         val c = new Complex(x, y)
@@ -184,33 +211,55 @@ object Mandelbrot {
         var iterations = 0
         var inSet = false
 
-        while (z.abs < 2 && !inSet) {         
-          z = z.squared.plus(c)
+        while (z.r < 2 && !inSet) {
+          z = square(z) plus c // Mandelbrot
+          //z = z mult sin(z)
+          // z.minus( z.plus(z.plus(Complex(-1, 0)))  + c
           iterations += 1
-          if (iterations == depth)
-            inSet = true
+          inSet = iterations == depth
         }
 
         val colour = if (inSet)
           Color.black
-        else 
-          new Color(
-            pow(iterations, 3).toInt % 255,
-            pow(iterations, 7).toInt % 255,
-            pow(iterations, 5).toInt % 255)
+        else
+          colourPallet((iterations + colourOffset) % (maxDepth + 1))
 
         g.setColor(colour)
-        g.drawRect(i, j, 1, 1)
+        g.drawRect(i, j, pixSize, pixSize)
       }
     }
   }
 
-  class Complex(val real: Double, val imag: Double) {
-    def squared =
-      new Complex(real * real - imag * imag, 2 * real * imag)
-    def abs =
-      sqrt(real * real + imag * imag)
-    def plus(other: Complex) =
-      new Complex(real + other.real, imag + other.imag)
+  case class Complex(val re: Double, val im: Double) {
+    def r =
+      sqrt(re * re + im * im)
+    infix def plus(other: Complex) =
+      Complex(re + other.re, im + other.im)
+    infix def minus(other: Complex) =
+      Complex(re - other.re, im - other.im)
+    // ((a+ib)(c+id)=(ac-bd)+i(ad+bc)\)
+    infix def mult(other: Complex) =
+      Complex(re * other.re - this.im * other.im, re * other.im + im * other.re)
+    infix def mult(scalar: Double) =
+      Complex(re *  scalar, im * scalar)
+
+    def toPolar = Polar(r, atan(im/re))
   }
+  case object Complex {
+    def square(c: Complex) =
+      Complex(c.re * c.re - c.im * c.im, 2 * c.re * c.im)
+
+    // sin(𝑎 + 𝑏𝑖) = sin 𝑎 cosh 𝑏 + 𝑖cos𝑎 sinh 𝑏
+    def sin(c: Complex) =
+      Math.sin(c.re) * cosh(c.im) + cos(c.re) * sinh(c.im)
+  }
+
+  case class Polar(r : Double, theta: Double) {
+    def pow(n: Double) = Polar(Math.pow(r, n), n * theta)
+    def toCartesian = Complex(r * cos(theta), r * Math.sin(theta))
+  }
+}
+
+object Mandelbrot {
+  val maxDepth = 125
 }

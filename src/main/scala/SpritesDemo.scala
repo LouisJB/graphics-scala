@@ -50,7 +50,6 @@ object Sprites {
   case object Tri extends Mode
   case object StartFlake extends Mode
   case object Text extends Mode
-  case object CatImage1 extends Mode
   case class CatImage(n: Int) extends Mode
 
   case class BouncingSprite(id: String, var x: Int, var y: Int, var height: Int, var width: Int, mode: Mode = Ball) extends SpriteType {

@@ -205,20 +205,31 @@ case class Mandelbrot(pixSize: Int) {
       for (j <- 0 to size.height by pixSize) {
         val x = i / xScale + xLoc
         val y = j / yScale + yLoc
-        val c = new Complex(x, y)
-
-        var z = c
+        val z0 = new Complex(x, y)
+       
+        var z = z0
         var iterations = 0
         var inSet = false
 
+        // Mandelbrot looks for divergence up to max depth interations
         while (z.r < 2 && !inSet) {
-          z = square(z) plus c // Mandelbrot
+          z = square(z) plus z0 // Mandelbrot
           //z = z mult sin(z)
-          // z.minus( z.plus(z.plus(Complex(-1, 0)))  + c
           iterations += 1
           inSet = iterations == depth
         }
-
+/*
+        var isRoot = false
+        while (!isRoot && !inSet) {
+          val num = z.toPolar.pow(3).toCartesian minus 1
+          val den = square(z) mult 3
+          val znew = z minus (num divide den) plus z0
+          iterations += 1
+          isRoot = nearlyZero(num.r) || nearlyZero((znew minus z).r)
+          z = znew
+          inSet = iterations == depth
+        }
+*/
         val colour = if (inSet)
           Color.black
         else
@@ -228,38 +239,50 @@ case class Mandelbrot(pixSize: Int) {
         g.drawRect(i, j, pixSize, pixSize)
       }
     }
+    print(".")
   }
 
-  case class Complex(val re: Double, val im: Double) {
-    def r =
-      sqrt(re * re + im * im)
-    infix def plus(other: Complex) =
-      Complex(re + other.re, im + other.im)
-    infix def minus(other: Complex) =
-      Complex(re - other.re, im - other.im)
-    // ((a+ib)(c+id)=(ac-bd)+i(ad+bc)\)
-    infix def mult(other: Complex) =
-      Complex(re * other.re - this.im * other.im, re * other.im + im * other.re)
-    infix def mult(scalar: Double) =
-      Complex(re *  scalar, im * scalar)
-
-    def toPolar = Polar(r, atan(im/re))
-  }
-  case object Complex {
-    def square(c: Complex) =
-      Complex(c.re * c.re - c.im * c.im, 2 * c.re * c.im)
-
-    // sin(𝑎 + 𝑏𝑖) = sin 𝑎 cosh 𝑏 + 𝑖cos𝑎 sinh 𝑏
-    def sin(c: Complex) =
-      Math.sin(c.re) * cosh(c.im) + cos(c.re) * sinh(c.im)
-  }
-
-  case class Polar(r : Double, theta: Double) {
-    def pow(n: Double) = Polar(Math.pow(r, n), n * theta)
-    def toCartesian = Complex(r * cos(theta), r * Math.sin(theta))
-  }
+  def nearlyZero(x: Double, tol: Double = 0.001) = abs(x) < tol
 }
 
 object Mandelbrot {
   val maxDepth = 125
+}
+
+case class Complex(val re: Double, val im: Double) {
+  def r =
+    sqrt(re * re + im * im)
+  infix def plus(other: Complex) =
+    Complex(re + other.re, im + other.im)
+  infix def minus(other: Complex) =
+    Complex(re - other.re, im - other.im)
+  infix def minus(otherRe: Double) =
+    Complex(re - otherRe, im)
+  // ((a+ib)(c+id)=(ac-bd)+i(ad+bc)\)
+  infix def mult(other: Complex) =
+    Complex(re * other.re - this.im * other.im, re * other.im + im * other.re)
+  infix def mult(scalar: Double) =
+    Complex(re *  scalar, im * scalar)
+  infix def divide(other: Complex) = {
+    val d = pow(other.re, 2.0) + pow(other.im, 2.0)
+    Complex(
+      (re * other.re + im * other.im) / d,
+      (im * other.re - re * other.im) / d
+    )
+  }
+
+  def toPolar = Polar(r, atan(im/re))
+}
+case object Complex {
+  def square(c: Complex) =
+    Complex(c.re * c.re - c.im * c.im, 2.0 * c.re * c.im)
+
+  // sin(𝑎 + 𝑏𝑖) = sin 𝑎 cosh 𝑏 + 𝑖cos𝑎 sinh 𝑏
+  def sin(c: Complex) =
+    Complex(Math.sin(c.re) * cosh(c.im), cos(c.re) * sinh(c.im))
+}
+
+case class Polar(r : Double, theta: Double) {
+  def pow(n: Double) = Polar(Math.pow(r, n), n * theta)
+  def toCartesian = Complex(r * cos(theta), r * Math.sin(theta))
 }

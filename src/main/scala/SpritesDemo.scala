@@ -17,6 +17,7 @@ import MathUtils._
 import java.awt.Rectangle
 import java.awt.AlphaComposite
 import scala.swing.Font
+import javax.swing.ImageIcon
 
 case class XY(x: Int, y: Int)
 
@@ -49,6 +50,8 @@ object Sprites {
   case object Tri extends Mode
   case object StartFlake extends Mode
   case object Text extends Mode
+  case object CatImage1 extends Mode
+  case class CatImage(n: Int) extends Mode
 
   case class BouncingSprite(id: String, var x: Int, var y: Int, var height: Int, var width: Int, mode: Mode = Ball) extends SpriteType {
     protected var color = Color.white
@@ -59,6 +62,16 @@ object Sprites {
     private val numberSides = randInt(4, 2)
     private val showLegend = false
     private val legend = s"$id mode: $mode, ns: $numberSides"
+
+    def loadImage(path: String) = {
+      println("loading image: " + path)
+      val imageIcon = new ImageIcon(path)
+      val tmpImage = imageIcon.getImage()
+      val image = new BufferedImage(imageIcon.getIconWidth(), imageIcon.getIconHeight(), BufferedImage.TYPE_INT_ARGB)
+      image.getGraphics().drawImage(tmpImage, 0, 0, null)
+      tmpImage.flush()
+      image
+    }
 
     val ks = KockSnowflake(width, height, randInt(5, 1))
     override def draw(g: Graphics2D) = {
@@ -88,8 +101,16 @@ object Sprites {
         case Text =>
           val originalFont = g.getFont()
           g.setFont(new Font(originalFont.getName(), Font.Bold.id, 16))
-          g.drawString("Merry Christmas", x, y)
+          g.drawString("Meowy Christmas", x, y)
           g.setFont(originalFont)
+        case CatImage(n) =>
+          import javax.imageio.ImageIO
+          val imagePath = if (n == 1)
+            "/images/cat1.png"
+          else
+            "/images/cat2.png"
+          val image = ImageIO.read(getClass().getResource(imagePath))
+          g.drawImage(image, x, y, null)
       }
       if (showLegend)
         g.drawString(legend, x, y)
@@ -207,12 +228,14 @@ object Sprites {
         val xDir = if (randInt(2, 0) > 0) 1 else -1
         val yDir = if (randInt(2, 0) > 0) 1 else -1
 
-        val mode = randInt(5, 0) match {
+        val mode = randInt(7, 0) match {
           case 0 => Ball
           case 1 => Koch
           case 2 => Tri
           case 3 => StartFlake
           case 4 => Text
+          case 5 => CatImage(1)
+          case 6 => CatImage(2)
         }
         val newSize = if (randomSize)
           randInt(objectSize, 20)
@@ -238,7 +261,7 @@ object Sprites {
       val originalFont = g2d.getFont()
       g2d.setColor(rndColor)
       g2d.setFont(new Font(originalFont.getName(), Font.Bold.id, 48))
-      g2d.drawString("Merry Christmas 2024", 100, 100)
+      g2d.drawString("Meowy Christmas 2024", 100, 100)
       ChristmasTree.draw(g, size.width/4, size.height/4, size.width/2, size.height/2)
       g2d.setFont(originalFont)
 

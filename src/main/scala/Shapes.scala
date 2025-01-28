@@ -18,11 +18,13 @@ import java.awt.Rectangle
 import java.awt.event.WindowAdapter
 import javax.swing.SwingUtilities
 
+import utils._
+import GraphicUtils._
+import ShapesUtils._
+import MathUtils._
+
 
 object Shapes {
-  import GraphicUtils._
-  import ShapesUtils._
-  import Utils._
   private val defaultSize = 800
   private val titleMsg = "Shapes"
  
@@ -113,51 +115,4 @@ object Shapes {
     winCloser.waitOnClose()
     println("Ended")
   }
-}
-
-object ShapesUtils {
-  // create array of x-y points
-  // non-rotated polygon around a circle
-  def poly(x: Int, y: Int, size: Int, arc: Int = 1, initialAngle: Int = 0) = {
-    (0 to 360 by arc).map ( a =>
-      val r = ((a + initialAngle) * 2 * PI) / 360
-      (x + (sin(r) * size).toInt, y + (cos(r) * size).toInt)
-    ).toArray
-  }
-
-  // polygon with rotated axis/coordinate system and minor axis scaling
-  def polyEx(x: Int, y: Int, size: Int, arc: Int = 1, initialAngle: Int = 0, maybeMinorAxis: Option[Int] = None) = {
-    val minorAxis = maybeMinorAxis.getOrElse(size)
-    (0 to 360 by arc).map ( a =>
-      val phi = (a * 2 * PI) / 360
-      val theta = (initialAngle * 2 * PI) / 360
-      val dx = sin(phi) * size
-      val dy = cos(phi) * minorAxis
-      val ddx = dx * cos(theta) + dy * sin(theta)
-      val ddy = dx * -1.0 * sin(theta) + dy * cos(theta)
-      
-      (x + ddx.toInt, y + ddy.toInt)
-    ).toArray
-  }
-
-  def polyDistorted(x: Int, y: Int, size: Int, arc: Int = 1, initialAngle: Int = 0, maybeMinorAxis: Option[Int] = None) = {
-    val minorAxis = maybeMinorAxis.getOrElse(size)
-    
-    val width = size - sin(initialAngle) * minorAxis
-    val height =  minorAxis + cos(initialAngle) * size
-    
-    (0 to 360 by arc).map ( a =>
-      val r = ((a + initialAngle) * 2 * PI) / 360
-      (x + (sin(r) * width).toInt, y + (cos(r) * height).toInt)
-    ).toArray
-  }
-
-  def toArrayXYPair(points: Array[(Int, Int)]) =
-    (points.map(_._1), points.map(_._2), points.length)
-}
-
-object Utils {
-  lazy val rand = new Random()
-  def randInt(range: Int, min: Int = 0) =
-    (abs(rand.nextInt()) % range) + min
 }

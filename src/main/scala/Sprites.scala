@@ -1,6 +1,9 @@
+package sprites
+
 import java.awt.{Color, Graphics2D, Point, geom}
 import java.awt.Dimension
 import java.awt.Image
+
 
 trait SpriteType {
   def id: String

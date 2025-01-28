@@ -19,11 +19,13 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.awt.event.WindowAdapter
 import javax.swing.SwingUtilities
 
+import utils._
+import MathUtils._
+
 
 object Rectangles {
   import GraphicUtils._
   import ShapesUtils._
-  import Utils._
   private val defaultSize = 800
   private val titleMsg = "Rectangles"
  

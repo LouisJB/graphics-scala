@@ -21,6 +21,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.awt.event.WindowAdapter
 import javax.swing.SwingUtilities
 
+import utils._
+
 
 object Sierpinski {
   import GraphicUtils._

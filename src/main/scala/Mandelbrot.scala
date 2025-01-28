@@ -17,6 +17,8 @@ import scala.swing.Component
 import javax.swing.Timer
 import java.awt.{event => jae}
 
+import utils._
+
 
 object MandelbrotDemo {
   private val defaultSize = 800

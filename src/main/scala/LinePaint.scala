@@ -4,6 +4,9 @@ import scala.swing.Swing._
 import scala.swing.event._
 import scala.swing.{Frame, MainFrame, Panel, SimpleSwingApplication}
 
+import utils._
+
+
 object LinePainting extends SimpleSwingApplication {
   import GraphicUtils._
   private var randomColor = false

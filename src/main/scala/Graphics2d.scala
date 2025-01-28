@@ -9,6 +9,9 @@ import java.awt.geom.Path2D
 import java.awt.GradientPaint
 import java.awt.RenderingHints
 
+import utils._
+
+
 object Graphics2D extends SimpleSwingApplication {
   private val defaultSize = 600
   private val borderSize = 5

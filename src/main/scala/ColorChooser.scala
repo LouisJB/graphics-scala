@@ -17,6 +17,9 @@ import scala.swing.Swing._
 import scala.swing._
 import scala.swing.event._
 
+import utils._
+
+
 /**
  * Demo for ColorChooser.
  * Based on http://download.oracle.com/javase/tutorial/uiswing/components/colorchooser.html

@@ -24,6 +24,7 @@ import java.awt.Rectangle
 import java.awt.AlphaComposite
 import scala.swing.Font
 import javax.swing.ImageIcon
+import java.awt.Toolkit
 
 
 object SpriteMove {
@@ -45,7 +46,7 @@ object SpriteMove {
   private val fgColor = Color.white
 
 
-  case class MovingSprite(id: String, var x: Int, var y: Int, var height: Int, var width: Int, mode: Mode) extends SpriteType {
+  case class MovingSprite(id: String, var x: Int, var y: Int, var height: Int, var width: Int, mode: Mode, collideFn: () => Unit) extends SpriteType {
     protected var color = Color.white
     var speed = XY(10, 10)
     protected var collided = 0
@@ -101,16 +102,7 @@ object SpriteMove {
     def collided(other: SpriteType): SpriteType = {
       if (other.isInstanceOf[BouncingSprite]) {
         val s = other.asInstanceOf[BouncingSprite]
-        speed = XY(
-          (abs(speed.x) + abs(s.speed.x)) / 2 * speed.x.sign * s.speed.x.sign,
-          (abs(speed.y) + abs(s.speed.y)) / 2 * speed.y.sign * s.speed.y.sign
-        )
-        if (!allowStickyCollisions) {
-          x = x + speed.x.sign * (size.x / 2)
-          y = y + speed.y.sign * (size.y / 2)
-          collided = collidedFrameLen
-          color = Color.white
-        }
+        collideFn()
       }
       this
     }
@@ -144,7 +136,15 @@ object SpriteMove {
     preferredSize = (panelSize, panelSize)
     focusable = true
 
-    val mainSprite = new MovingSprite("main", randInt(panelSize, 1), randInt(panelSize, 1), 100, 100, CatImage(1))
+    var backgroundFlashCount = 0
+    def flashBackground() = {
+      backgroundFlashCount = 2
+      (1 to 50).foreach { _ =>
+        repaint()
+      }
+    }
+
+    val mainSprite = new MovingSprite("main", randInt(panelSize, 1), randInt(panelSize, 1), 100, 100, CatImage(1), flashBackground)
     val otherSprite = new BouncingSprite("main", randInt(panelSize, 1), randInt(panelSize, 1), 100, 100, StarFlake)
   
     sprites.add(mainSprite)
@@ -153,6 +153,14 @@ object SpriteMove {
     // this is actually going to control frame redraw
     val timer = new Timer(delayMs.toInt, new jae.ActionListener() {
       def actionPerformed(e: jae.ActionEvent): Unit =
+        if (backgroundFlashCount > 0) {
+          backgroundFlashCount -= 1
+          background = rndColor
+          Toolkit.getDefaultToolkit().beep()
+        }
+        else
+          background = Color.BLACK
+
         repaint()
     }).start()
 
@@ -181,8 +189,6 @@ object SpriteMove {
       val g2d = buffImg.createGraphics()
       g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
 
-      val originalColor = g2d.getColor()
-
       (1 to trailLen).map { z =>
         val opacity = z/trailLen.toFloat
         g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, opacity))
@@ -190,8 +196,7 @@ object SpriteMove {
       }
 
       // draw out the offline screen buffer to the displayed graphics screen, to display it
-      val g2dr = g.asInstanceOf[Graphics2D]
-      g2dr.drawImage(buffImg, 0, 0, null)
+      g.drawImage(buffImg, 0, 0, null)
       g2d.dispose()
     }
   }

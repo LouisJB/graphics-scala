@@ -33,12 +33,14 @@ object GaneOfLife {
   private val defaultSize = 1000
   private val title = "Game of life"
  
-  private val noOfCellsWide = 80
-  private val noOfCellsHeigh = 80
+  private val noOfCellsWide = 100
+  private val noOfCellsHeigh = 100
 
-  private val borderSize = 10
-  private val frameRate = 10
-  private var fgColor = Color.white
+  private var frameRate = 10
+  private def frameDelayMs = 1000 / frameRate
+
+  //private var fgColor = Color.white
+  private var randColour = true
 
   val cells = Cells(noOfCellsWide, noOfCellsHeigh)
 
@@ -49,12 +51,14 @@ object GaneOfLife {
     focusable = true
 
     // this is actually going to control frame redraw
-    val timer = new Timer(1000 / frameRate, new jae.ActionListener() {
+    val timer = new Timer(frameDelayMs, new jae.ActionListener() {
       def actionPerformed(e: jae.ActionEvent): Unit = {
         repaint()
       }
     })
     timer.stop()
+
+    private def mkTitleMsg(msg: String) = s"$title - $msg (${cells.generationCounter_})"
 
     listenTo(keys)
     listenTo(mouse.clicks, mouse.moves)
@@ -66,18 +70,32 @@ object GaneOfLife {
         case Key.P =>
           if (timer.isRunning) {
             timer.stop
-            frame.title = title + " - Stopped"
+            frame.title = mkTitleMsg("Stopped")
           }
           else {
             timer.start
-            frame.title = title + " - Running"
+            frame.title = mkTitleMsg("Running")
           }
+        case Key.C =>
+          cells.clear()
+          frame.title = s"$title - (${cells.generationCounter_})"
+          repaint()
+        case Key.R =>
+          randColour = !randColour
+          cells.randomColour(randColour)
+          repaint()
+        case Key.Up =>
+          frameRate += 1
+          timer.setDelay(frameDelayMs)
+        case Key.Down =>
+          frameRate = max(frameRate - 1, 1)
+          timer.setDelay(frameDelayMs)
         case Key.X | Key.Q | Key.Escape =>
           System.exit(0)
         case _ =>
       }
       case KeyReleased(_, _, _, _) =>
-      repaint()
+        repaint()
     }
 
     override def paintComponent(g: Graphics2D): Unit = {
@@ -92,8 +110,10 @@ object GaneOfLife {
       val maxSize = min(size.height, size.width)
 
       g2d.setColor(Color.white)
-      if (timer.isRunning())
+      if (timer.isRunning()) {
         cells.update()
+        frame.title = s"$title - Running (${cells.generationCounter_})"
+      }
       cells.draw(g2d)
 
       // draw out the offline screen buffer to the displayed graphics screen, to display it
@@ -126,9 +146,10 @@ object GaneOfLife {
   }
 }
 
-case class Cells(cellCols: Int, cellRows: Int) {
+case class Cells(cellCols: Int, cellRows: Int, var randColour: Boolean = true) {
   import Cells._
   var cells = Array.tabulate(cellCols, cellRows)((i, j) => Cell(i, j))
+  private var generationCounter = 0
 
   def calcCellSize(width: Int, height: Int): Int =
     Math.min(width / cellCols, height / cellRows)
@@ -162,34 +183,57 @@ case class Cells(cellCols: Int, cellRows: Int) {
   def update(): Unit = {
     val newCells =  clonedCells
     cells.foreach(_.foreach { (c: Cell) =>
-      // rules for canonical game of life
+      // rules for the canonical Conway's game of life
       val newFill =
         (c.fill, adjacents(c).filter(_.fill).length) match {
-          case (true, n) if n >= 2 && n <= 3 => true // survives
-          case (true, _) => false // death due to over or under population
-          case (false, n) if n == 3 => true // reproduction
+          case (true, n) if n >= 2 && n <= 3 => true  // survivers
+          case (true, _) => false                     // death due to over or under population
+          case (false, n) if n == 3 => true           // reproduction
           case _ => false
         }
-      newCells(c.i)(c.j) = c.copy(fill = newFill)
+      newCells(c.i)(c.j).setFill(newFill)
     })
+    generationCounter += 1
     cells = newCells
   }
 
+  def randomColour(rc: Boolean) =
+    randColour = rc
+
   case class Cell(i: Int, j: Int, var fill: Boolean = false) {
+    private var colour = Color.WHITE
+
     def draw(g: Graphics2D) = {
       val bounds = g.getClipBounds()
       val cellSize = calcCellSize(bounds.width, bounds.height)
       val x = bounds.x + i * cellSize
       val y = bounds.y + j * cellSize
-      if (fill)
+      if (fill) {
+        g.setColor(colour)
         g.fillRect(x, y, cellSize, cellSize)
-      else
+      }
+      else {
+        g.setColor(Color.GRAY)
         g.drawRect(x, y, cellSize, cellSize)
+      }
     }
 
-    def flip = fill = !fill
+    def flip = setFill(!fill)
+
+    def setFill(newFill: Boolean) = {
+      if (randColour && fill != newFill)
+        colour = rndColor
+      fill = newFill
+    }
   }
 
   def draw(g: Graphics2D) =
     cells.foreach(_.foreach(_.draw(g)))
+
+  def clear() = {
+    generationCounter = 0
+    cells.foreach(_.foreach(_.fill = false))
+  }
+
+  def generationCounter_ = generationCounter
 }
